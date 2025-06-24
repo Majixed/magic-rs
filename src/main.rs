@@ -1,7 +1,7 @@
 use dotenvy::dotenv;
 use std::sync::Arc;
 use subprocess::{self, NullFile, Redirection};
-use sysinfo::{ProcessorExt, System, SystemExt};
+use sysinfo::System;
 use tracing::info;
 
 use poise::serenity_prelude as serenity;
@@ -39,9 +39,9 @@ async fn about(ctx: Context<'_>) -> Result<(), Error> {
     let mut sys = System::new_all();
     sys.refresh_all();
 
-    let cpu = sys.get_global_processor_info().get_cpu_usage();
-    let used_mem = sys.get_used_memory();
-    let total_mem = sys.get_total_memory();
+    let cpu = sys.global_cpu_usage();
+    let used_mem = sys.used_memory();
+    let total_mem = sys.total_memory();
 
     let about_str: &String = &format!(
         "```
@@ -50,20 +50,18 @@ async fn about(ctx: Context<'_>) -> Result<(), Error> {
       Memory: {}
    CPU Usage: {}
  API Version: {}
-Rust Version: {}
     Platform: {}
 ```",
         ctx.cache().guild_count(),
         ctx.cache().user_count(),
         &format!(
             "{:.2} GB used out of {:.2} GB",
-            used_mem as f64 / (1024. * 1024.),
-            total_mem as f64 / (1024. * 1024.)
+            used_mem as f64 / (1024. * 1024. * 1024.),
+            total_mem as f64 / (1024. * 1024. * 1024.)
         ),
         &format!("{:.2}%", cpu),
         serenity::GATEWAY_VERSION,
-        "rust",
-        "os",
+        System::kernel_long_version(),
     );
     ctx.say(about_str).await?;
     Ok(())
