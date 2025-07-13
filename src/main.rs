@@ -15,7 +15,6 @@ mod misc;
 #[shuttle_runtime::main]
 async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleSerenity {
     let prefix = "-".to_owned();
-    let prefix_str = prefix.clone();
 
     let token = secret_store
         .get("TOKEN")
@@ -40,7 +39,7 @@ async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleS
             ],
             skip_checks_for_owners: false,
             prefix_options: poise::PrefixFrameworkOptions {
-                prefix: Some(prefix.into()),
+                prefix: Some(prefix.clone().into()),
                 mention_as_prefix: true,
                 ignore_bots: true,
                 edit_tracker: Some(Arc::new(poise::EditTracker::for_timespan(
@@ -54,7 +53,7 @@ async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleS
             Box::pin(async move {
                 ctx.set_activity(Some(serenity::ActivityData::listening(format!(
                     "{}help",
-                    prefix_str
+                    prefix,
                 ))));
                 Ok(Data {})
             })
