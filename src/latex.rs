@@ -1,4 +1,8 @@
-use image::codecs::png::{CompressionType, FilterType};
+use grep::{printer::Standard, regex::RegexMatcher, searcher::SearcherBuilder};
+use image::{
+    EncodableLayout,
+    codecs::png::{CompressionType, FilterType, PngEncoder},
+};
 use pdf2image_alt::{PdfInfo, RenderOptionsBuilder, render_pdf_single_page};
 use poise::CreateReply;
 use reqwest::multipart;
@@ -26,18 +30,22 @@ pub async fn tex(ctx: Context<'_>, #[rest] code: String) -> Result<(), Error> {
         .bytes()
         .await?;
 
-    if resp.starts_with("%".as_bytes()) {
-        let pdf = PdfInfo::read(&resp).await.unwrap();
+    let bytes = resp.as_bytes();
+
+    if bytes.starts_with("%".as_bytes()) {
+        let pdf = PdfInfo::read(&bytes).await.unwrap();
         let opts = RenderOptionsBuilder::default()
             .pdftocairo(true)
             .resolution(pdf2image_alt::DPI::Uniform(700))
             .build()?;
 
-        let img = render_pdf_single_page(&resp, &pdf, 1, &opts).await.unwrap();
+        let img = render_pdf_single_page(&bytes, &pdf, 1, &opts)
+            .await
+            .unwrap();
 
         let mut png_bytes = Vec::new();
 
-        let encoder = image::codecs::png::PngEncoder::new_with_quality(
+        let encoder = PngEncoder::new_with_quality(
             &mut png_bytes,
             CompressionType::Best,
             FilterType::NoFilter,
@@ -50,7 +58,18 @@ pub async fn tex(ctx: Context<'_>, #[rest] code: String) -> Result<(), Error> {
         let reply = CreateReply::default().attachment(attach);
         ctx.send(reply).await?;
     } else {
-        ctx.say("Error occurred.").await?;
+        let re = RegexMatcher::new(r"^!")?;
+        let mut searcher = SearcherBuilder::new()
+            .after_context(10)
+            .line_number(false)
+            .build();
+        let mut printer = Standard::new_no_color(vec![]);
+        searcher.search_slice(&re, bytes, printer.sink(&re))?;
+
+        let mut output = String::from_utf8(printer.into_inner().into_inner())?;
+        output.truncate(1992);
+
+        ctx.say(format!("```\n{}\n```", output)).await?;
     }
     Ok(())
 }
