@@ -51,8 +51,8 @@ pub async fn about(ctx: Context<'_>) -> Result<(), Error> {
         ctx.cache().user_count(),
         &format!(
             "{:.2} GB used out of {:.2} GB",
-            used_mem as f64 / (1024. * 1024. * 1024.),
-            total_mem as f64 / (1024. * 1024. * 1024.)
+            used_mem as f64 / (1024_f64.powi(3)),
+            total_mem as f64 / (1024_f64.powi(3))
         ),
         &format!("{:.2}%", cpu),
         serenity::GATEWAY_VERSION,

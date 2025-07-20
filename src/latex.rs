@@ -1,4 +1,4 @@
-use grep::{printer::Standard, regex::RegexMatcher, searcher::SearcherBuilder};
+use grep::{printer::StandardBuilder, regex::RegexMatcher, searcher::SearcherBuilder};
 use image::{
     EncodableLayout,
     codecs::png::{CompressionType, FilterType, PngEncoder},
@@ -6,6 +6,7 @@ use image::{
 use pdf2image_alt::{PdfInfo, RenderOptionsBuilder, render_pdf_single_page};
 use poise::CreateReply;
 use reqwest::multipart;
+use tokio::task;
 
 use crate::{Context, Error, serenity};
 
@@ -25,33 +26,35 @@ pub async fn tex(ctx: Context<'_>, #[rest] code: String) -> Result<(), Error> {
         .post("https://texlive.net/cgi-bin/latexcgi")
         .multipart(form)
         .send()
-        .await
-        .unwrap()
+        .await?
         .bytes()
         .await?;
 
     let bytes = resp.as_bytes();
 
-    if bytes.starts_with("%".as_bytes()) {
-        let pdf = PdfInfo::read(&bytes).await.unwrap();
+    if bytes.starts_with(b"%PDF") {
+        let pdf = PdfInfo::read(&bytes).await?;
         let opts = RenderOptionsBuilder::default()
             .pdftocairo(true)
             .resolution(pdf2image_alt::DPI::Uniform(700))
             .build()?;
 
-        let img = render_pdf_single_page(&bytes, &pdf, 1, &opts)
-            .await
-            .unwrap();
+        let img = render_pdf_single_page(&bytes, &pdf, 1, &opts).await?;
 
-        let mut png_bytes = Vec::new();
+        let png_bytes = task::spawn_blocking(move || {
+            let mut png_bytes = Vec::new();
 
-        let encoder = PngEncoder::new_with_quality(
-            &mut png_bytes,
-            CompressionType::Best,
-            FilterType::NoFilter,
-        );
+            let encoder = PngEncoder::new_with_quality(
+                &mut png_bytes,
+                CompressionType::Best,
+                FilterType::NoFilter,
+            );
 
-        img.write_with_encoder(encoder).unwrap();
+            img.write_with_encoder(encoder).unwrap();
+
+            png_bytes
+        })
+        .await?;
 
         let attach =
             serenity::CreateAttachment::bytes(png_bytes, &format!("{}.png", ctx.author().id));
@@ -63,11 +66,12 @@ pub async fn tex(ctx: Context<'_>, #[rest] code: String) -> Result<(), Error> {
             .after_context(10)
             .line_number(false)
             .build();
-        let mut printer = Standard::new_no_color(vec![]);
+        let mut printer = StandardBuilder::new()
+            .max_matches(Some(1))
+            .build_no_color(vec![]);
         searcher.search_slice(&re, bytes, printer.sink(&re))?;
 
-        let mut output = String::from_utf8(printer.into_inner().into_inner())?;
-        output.truncate(1992);
+        let output = String::from_utf8(printer.into_inner().into_inner())?;
 
         ctx.say(format!("```\n{}\n```", output)).await?;
     }
