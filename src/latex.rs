@@ -43,20 +43,20 @@ pub async fn tex(ctx: Context<'_>, #[rest] code: String) -> Result<(), Error> {
             .await?
             .into_rgba8();
 
-        let ht = content.height();
-        let wd = if content.width() > 1000 {
-            content.width()
-        } else {
-            1000
-        };
-
-        let pixels = image::Rgba([0, 0, 0, 0]);
-
-        let mut img = image::ImageBuffer::from_pixel(wd, ht, pixels);
-
-        image::imageops::overlay(&mut img, &content, 0, 0);
-
         let png_bytes = task::spawn_blocking(move || {
+            let ht = content.height();
+            let wd = if content.width() > 1000 {
+                content.width()
+            } else {
+                1000
+            };
+
+            let pixels = image::Rgba([0, 0, 0, 0]);
+
+            let mut img = image::ImageBuffer::from_pixel(wd, ht, pixels);
+
+            image::imageops::overlay(&mut img, &content, 0, 0);
+
             let mut png_bytes = Vec::new();
 
             let encoder = PngEncoder::new_with_quality(
