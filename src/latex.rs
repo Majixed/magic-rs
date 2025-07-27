@@ -39,7 +39,22 @@ pub async fn tex(ctx: Context<'_>, #[rest] code: String) -> Result<(), Error> {
             .resolution(pdf2image_alt::DPI::Uniform(700))
             .build()?;
 
-        let img = render_pdf_single_page(&bytes, &pdf, 1, &opts).await?;
+        let content = render_pdf_single_page(&bytes, &pdf, 1, &opts)
+            .await?
+            .into_rgba8();
+
+        let ht = content.height();
+        let wd = if content.width() > 1000 {
+            content.width()
+        } else {
+            1000
+        };
+
+        let pixels = image::Rgba([0, 0, 0, 0]);
+
+        let mut img = image::ImageBuffer::from_pixel(wd, ht, pixels);
+
+        image::imageops::overlay(&mut img, &content, 0, 0);
 
         let png_bytes = task::spawn_blocking(move || {
             let mut png_bytes = Vec::new();
@@ -73,7 +88,11 @@ pub async fn tex(ctx: Context<'_>, #[rest] code: String) -> Result<(), Error> {
 
         let output = String::from_utf8(printer.into_inner().into_inner())?;
 
-        ctx.say(format!("```\n{}\n```", output)).await?;
+        if output.is_empty() {
+            ctx.say("No output.").await?;
+        } else {
+            ctx.say(format!("```\n{}\n```", output)).await?;
+        }
     }
     Ok(())
 }
