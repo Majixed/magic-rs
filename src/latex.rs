@@ -33,13 +33,13 @@ pub async fn tex(ctx: Context<'_>, #[rest] code: String) -> Result<(), Error> {
     let bytes = resp.as_bytes();
 
     if bytes.starts_with(b"%PDF") {
-        let pdf = PdfInfo::read(&bytes).await?;
+        let pdf = PdfInfo::read(bytes).await?;
         let opts = RenderOptionsBuilder::default()
             .pdftocairo(true)
             .resolution(pdf2image_alt::DPI::Uniform(700))
             .build()?;
 
-        let content = render_pdf_single_page(&bytes, &pdf, 1, &opts)
+        let content = render_pdf_single_page(bytes, &pdf, 1, &opts)
             .await?
             .into_rgba8();
 
@@ -72,7 +72,7 @@ pub async fn tex(ctx: Context<'_>, #[rest] code: String) -> Result<(), Error> {
         .await?;
 
         let attach =
-            serenity::CreateAttachment::bytes(png_bytes, &format!("{}.png", ctx.author().id));
+            serenity::CreateAttachment::bytes(png_bytes, format!("{}.png", ctx.author().id));
         let reply = CreateReply::default().attachment(attach);
         ctx.send(reply).await?;
     } else {
@@ -91,7 +91,7 @@ pub async fn tex(ctx: Context<'_>, #[rest] code: String) -> Result<(), Error> {
         if output.is_empty() {
             ctx.say("No output.").await?;
         } else {
-            ctx.say(format!("```\n{}\n```", output)).await?;
+            ctx.say(format!("```\n{output}\n```")).await?;
         }
     }
     Ok(())

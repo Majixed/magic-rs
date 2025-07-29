@@ -54,7 +54,7 @@ pub async fn about(ctx: Context<'_>) -> Result<(), Error> {
             used_mem as f64 / (1024_f64.powi(3)),
             total_mem as f64 / (1024_f64.powi(3))
         ),
-        &format!("{:.2}%", cpu),
+        &format!("{cpu:.2}%"),
         serenity::GATEWAY_VERSION,
         System::kernel_long_version(),
     );

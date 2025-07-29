@@ -24,7 +24,7 @@ pub async fn shell(ctx: Context<'_>, #[rest] cmd: String) -> Result<(), Error> {
         ctx.say("No output.").await?;
     } else {
         out_str.truncate(1992);
-        ctx.say(&format!("```\n{}\n```", out_str)).await?;
+        ctx.say(format!("```\n{out_str}\n```")).await?;
     }
     Ok(())
 }

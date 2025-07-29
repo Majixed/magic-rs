@@ -22,12 +22,34 @@ async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleS
 
     let intents = serenity::GatewayIntents::MESSAGE_CONTENT
         | serenity::GatewayIntents::DIRECT_MESSAGES
-        | serenity::GatewayIntents::GUILD_MESSAGES;
+        | serenity::GatewayIntents::GUILD_MESSAGES
+        | serenity::GatewayIntents::GUILD_MEMBERS
+        | serenity::GatewayIntents::GUILDS;
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
             event_handler: |ctx, event, framework, data| {
                 Box::pin(crate::events::event_handler(ctx, event, framework, data))
+            },
+            post_command: |ctx| {
+                Box::pin(async move {
+                    tracing::info!(
+                        "User `{}' ({}) ran command `{}' in {}: {}",
+                        ctx.author().name,
+                        ctx.author().id,
+                        ctx.command().qualified_name,
+                        if ctx.guild().is_some() {
+                            format!(
+                                "guild `{}' ({})",
+                                ctx.guild().unwrap().name,
+                                ctx.guild().unwrap().id
+                            )
+                        } else {
+                            "Direct Messages".to_owned()
+                        },
+                        ctx.invocation_string()
+                    )
+                })
             },
             commands: vec![
                 crate::admin::shell(),
@@ -39,7 +61,7 @@ async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleS
             ],
             skip_checks_for_owners: false,
             prefix_options: poise::PrefixFrameworkOptions {
-                prefix: Some(prefix.clone().into()),
+                prefix: Some(prefix.clone()),
                 mention_as_prefix: true,
                 ignore_bots: true,
                 edit_tracker: Some(Arc::new(poise::EditTracker::for_timespan(
@@ -52,8 +74,7 @@ async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleS
         .setup(|ctx, _ready, _framework| {
             Box::pin(async move {
                 ctx.set_activity(Some(serenity::ActivityData::listening(format!(
-                    "{}help",
-                    prefix,
+                    "{prefix}help"
                 ))));
                 Ok(Data {})
             })
